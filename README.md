@@ -9,9 +9,11 @@ A sophisticated conversational commerce engine built with **LangChain**, **LangG
 - **Persistent State**: Maintains user context, current product discussions, and negotiation stages across sessions.
 - **Tool-Enabled Reasoning**: Equipped with tools for product lookup, inventory checks, and sending multimedia notifications.
 - **RAG Integration**: Ready for Retrieval-Augmented Generation to provide accurate product information from structured catalogs.
-- **Human-in-the-Loop**: Escalates to human agents via `/mute` command or sales detection. Default "Muted" state gives humans control first.
-- **Media Support**: Handles incoming media (downloads to disk) and outgoing media (sends via URL).
+- **Human-in-the-Loop**: Escalates to human agents via `/mute` command or sales detection.
+- **Media Support**: Audio transcription (OpenAI Whisper), Image handling, and automatic media cleanup (TTL).
+- **Context Aware**: Understands quoted messages and uses them as context.
 - **Group Filter**: Automatically ignores group chats to focus on 1-on-1 customer service.
+- **Safety First**: System is offline by default (`SYSTEM_ACTIVE=False`) and users are muted by default (`GLOBAL_MUTE_ALL=True`).
 
 ## 🏗️ Architecture
 
@@ -25,8 +27,9 @@ graph TD
     Phone <-->|E2E Encrypted| Bridge[Node.js Bridge<br>whatsapp-web.js]
     
     subgraph "Server (Local or Cloud)"
-        Bridge <-->|HTTP JSON| API[FastAPI Gateway<br>Python]
+        Bridge <-->|HTTP JSON + Media| API[FastAPI Gateway<br>Python]
         
+        API -->|Transcribe| Whisper[OpenAI Whisper]
         API -->|Invoke| Brain[LangGraph Agent]
         Brain <-->|R/W| DB[(ChromaDB / Memory)]
         
@@ -55,6 +58,9 @@ graph TD
 | &nbsp;&nbsp; ├── `product_tools.py` | RAG implementation (matches query to product info). |
 | &nbsp;&nbsp; ├── `search_tools.py` | External web search for broader context. |
 | &nbsp;&nbsp; └── `notification_tools.py` | Escalation logic (notifying human admins). |
+| `app/utils/` | **Utilities** - Helpers. |
+| &nbsp;&nbsp; ├── `media_processor.py` | Audio transcription and file cleanup. |
+| &nbsp;&nbsp; ├── `logger.py` | Centralized structured logging. |
 | `app/main.py` | **Entry Point** - FastAPI app, Webhook handler, and Rate Limiter. |
 | | |
 | **`whatsapp-gateway/`** | **Node.js Bridge** ( The Body) |
@@ -64,7 +70,7 @@ graph TD
 | `tests/test_e2e_flows.py` | End-to-End simulation of sales conversations. |
 | `tests/test_gateway.py` | Unit tests for the HTTP Adapter layer. |
 
-### 🧠 Agent Logic Flow
+## 🧠 Agent Logic Flow
 
 ```mermaid
 stateDiagram-v2
@@ -107,28 +113,34 @@ stateDiagram-v2
 - **Framework**: [FastAPI](https://fastapi.tiangolo.com/)
 - **AI Orchestration**: [LangGraph](https://python.langchain.com/docs/langgraph) & [LangChain](https://python.langchain.com/)
 - **Messaging Gateway**: Node.js + [whatsapp-web.js](https://wwebjs.dev/)
-- **Models**: OpenAI (GPT-4o / GPT-4-turbo)
+- **Models**: OpenAI (GPT-4o / Whisper-1)
 - **Database**: SQL-based persistence (PostgreSQL recommended)
 
 ## 🎮 Admin & Control
 
-The system includes built-in commands for human oversight. You can send these commands from your own WhatsApp number (Self-Command) to any customer chat.
+The system includes built-in commands for human oversight. You can send these commands from your own WhatsApp number (defined in `ADMIN_WHATSAPP_NUMBER`) to control the system or specific user threads.
 
 ### Commands
 
 | Command | Description |
 | :--- | :--- |
-| `/activate` | **Enable** the AI agent for this chat. (Aliases: `/unmute`) |
-| `/deactivate` | **Disable** the AI agent for this chat. (Aliases: `/mute`) |
-| `/status` | Check if the system is ONLINE and if the current thread is active. |
+| `/activate [target]` | **Enable** the AI agent for a user. (Aliases: `/unmute`) |
+| `/deactivate [target]` | **Disable** the AI agent for a user. (Aliases: `/mute`) |
+| `/mute-all` | **Global**: Set new users to be Muted by default. |
+| `/unmute-all` | **Global**: Set new users to be Active by default. |
+| `/status [target]` | Check status. Use `/status all` to list all users. |
 | `/stop` | **Global Kill Switch**. Stops the AI for ALL users immediately. |
-| `/start` | **Global Resume**. Reactivates the system. |
+| `/start` | **Global Resume**. Reactivates the system (sets `SYSTEM_ACTIVE=True`). |
+| `/help` | List available commands. |
 
 ### ⚠️ Important Behaviors
 
-1.  **Default Muted**: New conversations start with the AI **deactivated**. You must explicitly send `/activate` to let the bot take over.
-2.  **Groups Ignored**: The system automatically ignores all messages from group chats (`@g.us`).
-3.  **Self-Commands**: You can send commands to a customer *from your own phone*. The system detects the command and applies it to that customer's thread.
+1.  **Safety First**: The system starts with `SYSTEM_ACTIVE=False` (Offline) and `GLOBAL_MUTE_ALL=True` (Muted).
+2.  **Activation**: You must send `/start` to bring the system online, and `/unmute-all` (or `/activate` per user) to allow AI replies.
+3.  **Media Cleanup**: Downloaded media files are automatically deleted after 24 hours (configurable) to save space. Audio files are deleted immediately after transcription.
+4.  **Groups Ignored**: The system automatically ignores all messages from group chats (`@g.us`).
+5.  **Remote Control**: Admin commands can specify a target phone number (e.g., `/mute 1234567890`) to control other chats remotely.
+6.  **Authorization**: Only the phone number configured in `.env` (`ADMIN_WHATSAPP_NUMBER`) can execute admin commands.
 
 ## 🚦 Getting Started
 

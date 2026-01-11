@@ -30,6 +30,11 @@ def create_graph():
     # 3. Tools -> Scanner (Check if we should silence) -> Chatbot
     workflow.add_edge("tools", "scanner")
     workflow.add_edge("scanner", "chatbot")
+
+    # 4. Admin Node (No-Op for state updates)
+    def admin_node(state): return {}
+    workflow.add_node("admin", admin_node)
+    workflow.add_edge("admin", END)
     
     checkpointer = MemorySaver()
     app_graph = workflow.compile(checkpointer=checkpointer)

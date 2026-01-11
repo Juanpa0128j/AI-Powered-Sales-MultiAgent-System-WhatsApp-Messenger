@@ -70,6 +70,19 @@ client.on('message_create', async msg => {
         }
     }
 
+    // Handle Quoted Message (Context)
+    let quotedBody = null;
+    if (msg.hasQuotedMsg) {
+        try {
+            const quotedMsg = await msg.getQuotedMessage();
+            if (quotedMsg) {
+                quotedBody = quotedMsg.body;
+            }
+        } catch (err) {
+            console.error('Failed to get quoted message:', err);
+        }
+    }
+
     // CASE 1: Self-Sent Message (Admin Command?)
     if (msg.fromMe) {
         // Only forward if it looks like a command
@@ -81,7 +94,8 @@ client.on('message_create', async msg => {
             from: msg.to, 
             body: msg.body,
             hasMedia: msg.hasMedia,
-            mediaPath: localMediaPath
+            mediaPath: localMediaPath,
+            quotedBody: quotedBody
         };
     } 
     // CASE 2: Incoming Message (Customer)
@@ -91,7 +105,8 @@ client.on('message_create', async msg => {
             from: msg.from,
             body: msg.body,
             hasMedia: msg.hasMedia,
-            mediaPath: localMediaPath
+            mediaPath: localMediaPath,
+            quotedBody: quotedBody
         };
     }
 

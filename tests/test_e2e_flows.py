@@ -11,12 +11,19 @@ import app.main
 # Corrected Test with proper Patch Order
 @patch("app.main.agent_graph") # First Arg
 @patch("app.main.whatsapp_client.send_message") # Second Arg
+@patch("app.main.SYSTEM_ACTIVE", True)
 def test_full_sales_flow(mock_send_message, mock_agent_graph, client):
     # Configure AsyncMock for ainvoke
     mock_agent_graph.ainvoke = AsyncMock()
     mock_agent_graph.ainvoke.return_value = {
         "messages": [MagicMock(content="We have running shoes.")]
     }
+    
+    # Mock State (Active)
+    mock_state = MagicMock()
+    mock_state.values = {"handoff_active": False}
+    mock_agent_graph.aget_state = AsyncMock(return_value=mock_state)
+    mock_agent_graph.aupdate_state = AsyncMock()
     
     # Bridge Payload
     payload = {
@@ -27,15 +34,23 @@ def test_full_sales_flow(mock_send_message, mock_agent_graph, client):
     response = client.post("/webhook", json=payload)
     
     assert response.status_code == 200
-    # Normalized ID check
-    mock_send_message.assert_called_with(to="whatsapp:+123", body="We have running shoes.")
+    # Normalized ID check (No change)
+    mock_send_message.assert_called_with(to="123@c.us", body="We have running shoes.", media_url=None)
 
 @patch("app.main.whatsapp_client.send_message")
 @patch("app.main.agent_graph") # Mock graph to prevent real calls if System Guard fails
+@patch.dict(os.environ, {"ADMIN_WHATSAPP_NUMBER": "ADMIN@c.us"})
 def test_admin_commands_and_handoff(mock_graph, mock_send_message, client):
+    # FORCE SYSTEM_ACTIVE = True initially to sanity check the "stop" command works
+    import app.main
+    app.main.SYSTEM_ACTIVE = True
+    # Setup state mocks
+    mock_graph.aget_state = AsyncMock(return_value=MagicMock(values={"handoff_active": False}))
+    mock_graph.aupdate_state = AsyncMock()
+
     # 1. Admin sends /stop
     client.post("/webhook", json={"from": "ADMIN@c.us", "body": "/stop"})
-    mock_send_message.assert_called_with("whatsapp:+ADMIN", "⛔ SISTEMA DETENIDO (Global Kill Switch Activado).")
+    mock_send_message.assert_called_with("ADMIN@c.us", "⛔ SISTEMA DETENIDO (Global Kill Switch Activado).")
     
     # 2. User tries to chat -> "halted"
     # Reset mock to capture new calls clearly
@@ -59,7 +74,7 @@ def test_admin_commands_and_handoff(mock_graph, mock_send_message, client):
 
 def test_rate_limiter(client):
     from app.main import limiter
-    user = "whatsapp:+123" # Matches 123@c.us normalization
+    user = "123@c.us" # No normalization
     limiter.usage = {} # Reset
     
     # Send 50 messages
@@ -72,7 +87,11 @@ def test_rate_limiter(client):
     with patch("app.main.whatsapp_client.send_message"), \
          patch("app.main.agent_graph") as mock_graph:
         
-        response = client.post("/webhook", json={"from": "123@c.us", "body": "Spam"}) # from -> 123@c.us maps to whatsapp:+123
+        # Mock State
+        mock_graph.aget_state = AsyncMock(return_value=MagicMock(values={"handoff_active": False}))
+        mock_graph.aupdate_state = AsyncMock()
+
+        response = client.post("/webhook", json={"from": "123@c.us", "body": "Spam"})
         
         # If this fails, it means we hit the graph!
         mock_graph.ainvoke.assert_not_called()

@@ -30,5 +30,6 @@ async def parse_bridge_webhook(request: Request) -> IncomingMessage:
         user_id=normalized_user_id,
         channel="whatsapp", # Always whatsapp for this bridge
         media_path=data.get("mediaPath"),
+        quoted_text=data.get("quotedBody"),
         raw_payload=data
     )

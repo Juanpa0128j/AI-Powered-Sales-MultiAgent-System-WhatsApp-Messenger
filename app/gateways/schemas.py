@@ -8,6 +8,7 @@ class IncomingMessage(BaseModel):
     text: Optional[str] = None
     media_url: Optional[str] = None
     media_path: Optional[str] = None
+    quoted_text: Optional[str] = None
     user_name: Optional[str] = None
 
 class OutboundMessage(BaseModel):

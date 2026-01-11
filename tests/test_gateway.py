@@ -25,6 +25,12 @@ def test_webhook_bridge_json(mock_bridge_client, mock_graph, client):
         "messages": [MagicMock(content="Bridge Response")]
     }
     
+    # Mock State (needed for Default Muted check)
+    mock_state = MagicMock()
+    mock_state.values = {"handoff_active": False} # Active by default
+    mock_graph.aget_state = AsyncMock(return_value=mock_state)
+    mock_graph.aupdate_state = AsyncMock()
+    
     # New Bridge JSON Payload
     payload = {
         "from": "1234567890@c.us",
@@ -47,5 +53,5 @@ def test_webhook_bridge_json(mock_bridge_client, mock_graph, client):
     
     # Verify arguments
     _, kwargs = call_args
-    assert kwargs["to"] == "whatsapp:+1234567890" # Normalized ID
+    assert kwargs["to"] == "1234567890@c.us" # Unchanged ID
     assert "Bridge Response" in kwargs["body"]
