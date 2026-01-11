@@ -1,1 +1,32 @@
+# Environment Variables
 .env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.python-version
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# WhatsApp Web.js (Session Persistence)
+.wwebjs_auth/
+.wwebjs_cache/
+whatsapp-gateway/media/
+
+# Database / Persistence
+chroma_db/
+*.sqlite
+*.db
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
