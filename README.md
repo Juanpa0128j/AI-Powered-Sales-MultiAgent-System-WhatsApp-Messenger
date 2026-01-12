@@ -81,19 +81,17 @@ stateDiagram-v2
     state RateLimiter {
         [*] --> CheckLimit
         CheckLimit --> Blocked: Exceeded
-        CheckLimit --> Allowed: OK
+        CheckLimit --> AdminCommandCheck: Allowed
     }
-    
-    Allowed --> AdminCommandCheck
     
     state AdminCommandCheck {
         [*] --> IsCommand
         IsCommand --> ExecuteCommand: Yes
         IsCommand --> HandoffCheck: No
+        
+        HandoffCheck --> HumanMode: Handoff Active?
+        HandoffCheck --> AgentGraph: No
     }
-    
-    HandoffCheck --> HumanMode: Handoff Active?
-    HandoffCheck --> AgentGraph: No
     
     state AgentGraph {
         [*] --> AnalyzeIntent
@@ -102,6 +100,8 @@ stateDiagram-v2
         
         UseTool --> ExecuteTool
         ExecuteTool --> AnalyzeIntent: Loop with Result
+        
+        Respond --> [*]
     }
     
     AgentGraph --> OutboundMessage
