@@ -64,7 +64,10 @@ GLOBAL_MUTE_ALL = True
 
 @app.post("/webhook")
 async def webhook(request: Request):
-    global SYSTEM_ACTIVE
+    global SYSTEM_ACTIVE, GLOBAL_MUTE_ALL
+    
+    # Local vars
+    base64_image = None
     
     # 1. Parse & Normalize (Changed to Bridge Parser)
     try:
@@ -96,12 +99,32 @@ async def webhook(request: Request):
             
             # Cleanup immediately (TTL = 0 for processed audio)
             cleanup_file(incoming_msg.media_path)
+        
+        # Handle Images (Vision)
+        elif incoming_msg.media_path.endswith((".jpg", ".jpeg", ".png", ".webp")):
+             from app.utils.media_processor import encode_image_to_base64
+             
+             base64_image = encode_image_to_base64(incoming_msg.media_path)
+             if base64_image:
+                 text = f"{text} [Imagen adjunta para análisis]"
+                 app_logger.info(f"📷 Image encoded for Vision API.")
+             else:
+                 text = f"{text} [Imagen recibida pero no se pudo procesar]"
+
+        # Handle Video/Other files
+        elif incoming_msg.media_path.endswith((".mp4", ".mov", ".pdf")):
+             filename = os.path.basename(incoming_msg.media_path)
+             text = f"[El usuario envió un archivo multimedia: {filename}. (Aún no puedo ver videos/docs)]"
+             app_logger.info(f"📁 User sent File: {filename}")
             
     # --- CONTEXT HANDLING (Quoted Messages) ---
     if incoming_msg.quoted_text:
         app_logger.info(f"💬 Quoted Message found: {incoming_msg.quoted_text[:50]}...")
         # Prepend context to the user's message so the LLM knows what they are replying to
         text = f"[Respondiendo a: \"{incoming_msg.quoted_text}\"] {text}"
+    
+    # Update the object with the augmented text (Transcription + Quote)
+    incoming_msg.text = text
     
     # --- RATE LIMIT CHECK ---
     # Only limit users, not admin commands (commands start with /)
@@ -138,7 +161,12 @@ async def webhook(request: Request):
         if len(command_parts) > 1:
             raw_target = command_parts[1].strip()
             # Basic normalization to append @c.us if missing and numeric
+            # Basic normalization to append @c.us if missing and numeric
             if "@" not in raw_target:
+                # Heuristic: If 10 digits, assume Colombian number (57) as per user context
+                if len(raw_target) == 10 and raw_target.isdigit():
+                    raw_target = f"57{raw_target}"
+                
                 target_id = f"{raw_target}@c.us"
             else:
                 target_id = raw_target
@@ -287,8 +315,24 @@ async def webhook(request: Request):
 
     # 3. Invoke Agent
     # Define generic state input
+    # Debug: Log the exact content going to the Agent
+    app_logger.info(f"🧠 Invoking Agent with input text: {incoming_msg.text}")
+    
+    # Construct Message Content (Multimodal if image present)
+    if base64_image:
+        message_content = [
+            {"type": "text", "text": incoming_msg.text},
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+            }
+        ]
+        app_logger.info("🧠 sending MULTIMODAL content to Agent.")
+    else:
+        message_content = incoming_msg.text
+
     input_state = {
-        "messages": [HumanMessage(content=incoming_msg.text)],
+        "messages": [HumanMessage(content=message_content)],
         "user_id": user_id,
         "channel": incoming_msg.channel
     }
@@ -337,7 +381,7 @@ async def webhook(request: Request):
     whatsapp_client.send_message(
         to=incoming_msg.user_id,
         body=response_text,
-        media_url=media_url
+        media_urls=[media_url] if media_url else None
     )
     
     return {"status": "ok"}

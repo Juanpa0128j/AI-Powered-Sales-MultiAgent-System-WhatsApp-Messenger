@@ -224,6 +224,7 @@ make run-bridge
 - [x] Basic Multimedia response support (System Prompt).
 - [x] **Bridge Enhancement**: Support sending images/video files via Node.js Bridge.
 - [x] **Bridge Enhancement**: Auto-reconnection logic (handled via `LocalAuth`).
+- [x] **Vision Integration**: Support for analyzing incoming images (GPT-4o Multimodal).
 - [ ] Develop a Dashboard for real-time monitoring of agent performance.
 - [ ] Dockerize the Node.js Bridge for easier deployment.
 

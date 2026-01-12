@@ -72,3 +72,22 @@ def cleanup_old_files(directory: str, max_age_hours: int = 24):
         logger.info(f"✨ Deleted {count} old media files.")
     else:
         logger.info("✅ No old media files found.")
+
+def encode_image_to_base64(file_path: str) -> str:
+    """
+    Encodes an image to Base64 string for GPT-4o input.
+    """
+    import base64
+    
+    if not os.path.exists(file_path):
+        logger.error(f"Image file not found: {file_path}")
+        return None
+
+    try:
+        with open(file_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
+        logger.info(f"🖼️ Encoded image {file_path} to Base64.")
+        return encoded_string
+    except Exception as e:
+        logger.error(f"❌ Failed to encode image: {e}")
+        return None

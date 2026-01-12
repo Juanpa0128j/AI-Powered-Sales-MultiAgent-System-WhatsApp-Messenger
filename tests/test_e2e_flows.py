@@ -35,7 +35,8 @@ def test_full_sales_flow(mock_send_message, mock_agent_graph, client):
     
     assert response.status_code == 200
     # Normalized ID check (No change)
-    mock_send_message.assert_called_with(to="123@c.us", body="We have running shoes.", media_url=None)
+    # Normalized ID check (No change)
+    mock_send_message.assert_called_with(to="123@c.us", body="We have running shoes.", media_urls=None)
 
 @patch("app.main.whatsapp_client.send_message")
 @patch("app.main.agent_graph") # Mock graph to prevent real calls if System Guard fails
