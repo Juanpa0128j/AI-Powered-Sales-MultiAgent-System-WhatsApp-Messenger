@@ -11,6 +11,8 @@ A sophisticated conversational commerce engine built with **LangChain**, **LangG
 - **RAG Integration**: Ready for Retrieval-Augmented Generation to provide accurate product information from structured catalogs.
 - **Human-in-the-Loop**: Escalates to human agents via `/mute` command or sales detection.
 - **Media Support**: Audio transcription (OpenAI Whisper), Image handling, and automatic media cleanup (TTL).
+- **Typing Indicator**: Simulates realistic human behavior with "typing..." status and natural delays.
+- **Product Dashboard**: Built-in UI (Streamlit) to manage the product catalog and vector embeddings.
 - **Context Aware**: Understands quoted messages and uses them as context.
 - **Group Filter**: Automatically ignores group chats to focus on 1-on-1 customer service.
 - **Safety First**: System is offline by default (`SYSTEM_ACTIVE=False`) and users are muted by default (`GLOBAL_MUTE_ALL=True`).
@@ -200,7 +202,13 @@ If you prefer manual setup:
 
 ### 🚀 Running the System
 
-You need two terminals:
+You need three terminals (or run in background):
+
+#### Terminal 0: Database (Required)
+
+```bash
+make db-up
+```
 
 #### Terminal 1: The Brain (Python)
 
@@ -216,6 +224,12 @@ make run-bridge
 # Or: cd whatsapp-gateway && node index.js
 ```
 
+#### Terminal 3: Admin Dashboard (Optional)
+
+```bash
+make run-dashboard
+```
+
 *Scan the QR Code that appears in this terminal using your WhatsApp Mobile App (Linked Devices).*
 
 ## 📝 Roadmap
@@ -225,7 +239,8 @@ make run-bridge
 - [x] **Bridge Enhancement**: Support sending images/video files via Node.js Bridge.
 - [x] **Bridge Enhancement**: Auto-reconnection logic (handled via `LocalAuth`).
 - [x] **Vision Integration**: Support for analyzing incoming images (GPT-4o Multimodal).
-- [ ] Develop a Dashboard for real-time monitoring of agent performance.
+- [x] **Product Dashboard**: Streamlit UI for managing inventory and vector embeddings.
+- [ ] Import Tool: Scrape Facebook Marketplace posts via Dashboard.
 - [ ] Dockerize the Node.js Bridge for easier deployment.
 
 ## 📄 License

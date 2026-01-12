@@ -35,3 +35,15 @@ class WhatsAppBridgeClient:
         except Exception as e:
             app_logger.error(f"Error sending message via Bridge to {to}: {e}")
             return None
+
+    def send_typing_indicator(self, to: str):
+        """
+        Send a 'typing...' signal to the user.
+        """
+        endpoint = f"{self.gateway_url}/chat/typing"
+        try:
+            httpx.post(endpoint, json={"to": to}, timeout=2.0)
+            app_logger.debug(f"✍️ Typing indicator sent to {to}")
+        except Exception as e:
+            # Non-blocking error
+            app_logger.warning(f"Failed to send typing indicator: {e}")

@@ -7,6 +7,9 @@ load_dotenv()
 
 from contextlib import asynccontextmanager
 import asyncio
+import os
+import time
+from typing import List, Optional
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -339,6 +342,10 @@ async def webhook(request: Request):
     
     # Run the graph!
     try:
+        # 3.1 Send "Typing..." Indicator
+        whatsapp_client.send_typing_indicator(user_id)
+
+        # 3.2 Invoke Agent
         final_output = await agent_graph.ainvoke(input_state, config=config)
     except Exception as e:
         app_logger.error(f"❌ Error invoking agent: {e}", exc_info=True)
@@ -348,6 +355,12 @@ async def webhook(request: Request):
     # 4. Extract Response
     last_message = final_output["messages"][-1]
     response_text = last_message.content
+    
+    # 4.1 Simulate Human Typing Delay
+    # Approx 0.05s per character, capped at 15s
+    typing_delay = min(len(response_text) * 0.05, 15.0)
+    app_logger.info(f"⏳ Simulating typing delay: {typing_delay:.2f}s")
+    await asyncio.sleep(typing_delay)
     
     app_logger.info(f"📤 Sending response to {user_id}: {response_text[:50]}...")
 

@@ -120,6 +120,31 @@ client.on('message_create', async msg => {
     }
 });
 
+// Endpoint to set typing state
+app.post('/chat/typing', async (req, res) => {
+    const { to } = req.body;
+    
+    if (!to) {
+        return res.status(400).json({ error: 'Missing "to"' });
+    }
+
+    try {
+        let chatId = to;
+        if (!chatId.includes('@')) {
+            chatId = chatId.replace('whatsapp:', '').replace('+', '') + '@c.us';
+        }
+
+        const chat = await client.getChatById(chatId);
+        await chat.sendStateTyping();
+        console.log(`Typing indicator sent to ${chatId}`);
+        res.json({ status: 'typing', chatId });
+        
+    } catch (error) {
+        console.error('Error sending typing state:', error);
+        res.status(500).json({ error: 'Failed to set typing state' });
+    }
+});
+
 // Endpoint to send messages FROM Python
 app.post('/send', async (req, res) => {
     const { to, body, mediaUrl } = req.body;

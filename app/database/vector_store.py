@@ -4,17 +4,23 @@ from langchain_core.documents import Document
 
 class ProductCatalog:
     def __init__(self):
-        # Lazy imports to avoid crashing if dependencies (like ctypes/libffi) are missing in strict envs
-        # or during restricted testing.
+        # Lazy imports to avoid crashing if dependencies are missing in strict envs
         from langchain_openai import OpenAIEmbeddings
-        from langchain_chroma import Chroma
+        from langchain_postgres.vectorstores import PGVector
         
         self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-        # Persistent local vector store
-        self.vector_store = Chroma(
+        
+        # Connection String (Adjust protocol for psycopg)
+        # Default: postgresql+psycopg://user:pass@localhost:5432/sales_db
+        db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://user:pass@localhost:5432/sales_db")
+        if "postgresql://" in db_url and "psycopg" not in db_url:
+            db_url = db_url.replace("postgresql://", "postgresql+psycopg://")
+
+        self.vector_store = PGVector(
+            embeddings=self.embeddings,
             collection_name="product_catalog",
-            embedding_function=self.embeddings,
-            persist_directory="./chroma_db"
+            connection=db_url,
+            use_jsonb=True,
         )
 
     def add_products(self, products: List[Dict[str, Any]]):
@@ -39,7 +45,7 @@ class ProductCatalog:
         
         if documents:
             self.vector_store.add_documents(documents)
-            print(f"Indexados {len(documents)} productos.")
+            print(f"Indexados {len(documents)} productos en Postgres (pgvector).")
 
     def search_semantic(self, query: str, k: int = 3) -> List[Dict]:
         """
@@ -55,11 +61,11 @@ class ProductCatalog:
 
     def get_product_by_sku(self, sku: str) -> Dict:
         """
-        Retrieve exact product details (simulating a DB lookup via metadata here).
-        In production, this might query SQL.
+        Retrieve exact product details (simulating a DB lookup via metadata filter).
         """
-        # Chroma metadata filtering
-        results = self.vector_store.get(where={"sku": sku})
-        if results and results['metadatas']:
-            return results['metadatas'][0]
+        # Hack: Use similarity search with exact filter to find the item
+        # We search for the SKU itself as text to hint the vector engine, plus strict filter.
+        docs = self.vector_store.similarity_search(sku, k=1, filter={"sku": sku})
+        if docs:
+            return docs[0].metadata
         return None

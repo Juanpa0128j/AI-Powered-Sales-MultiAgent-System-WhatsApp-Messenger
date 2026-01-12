@@ -10,7 +10,10 @@ help:
 	@echo "make setup        - Install all dependencies (Python & Node.js) and setup .env"
 	@echo "make run-backend  - Start the Python Brain (FastAPI)"
 	@echo "make run-bridge   - Start the Node.js Bridge (WhatsApp)"
+	@echo "make run-dashboard - Start the Product Manager Dashboard"
 	@echo "make test         - Run all automated tests"
+	@echo "make db-up        - Start Local Postgres DB (Docker)"
+	@echo "make db-down      - Stop Local Postgres DB"
 	@echo "make clean        - Remove cache and temporary files"
 
 setup: install-python install-node .env
@@ -46,3 +49,16 @@ clean:
 	rm -rf app/__pycache__ app/*/__pycache__
 	rm -rf tests/__pycache__
 	@echo "✨ Clean complete."
+
+run-dashboard:
+	@echo "📊 Starting Dashboard..."
+	uv run streamlit run dashboard.py
+
+db-up:
+	@echo "🐘 Starting PostgreSQL (pgvector)..."
+	docker-compose up -d
+	@echo "✅ Database running on localhost:5432"
+
+db-down:
+	@echo "🛑 Stopping PostgreSQL..."
+	docker-compose down
